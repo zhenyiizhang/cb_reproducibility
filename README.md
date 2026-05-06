@@ -4,11 +4,11 @@ This repository contains dataset-specific downstream analysis notebooks built on
 
 ## Usage
 
-Install `CytoBridge` first by following the installation steps in the main `cytobridge-spatial` repository:
+Install `CytoBridge` first by following the installation steps in the main `cb_pipeline` repository:
 
 ```bash
-git clone <cytobridge-spatial-repo>
-cd cytobridge-spatial
+git clone <cb_pipeline-repo>
+cd cb_pipeline
 
 conda env create -f environment.yml
 conda activate cb_pipeline
@@ -112,7 +112,7 @@ The script downloads:
 
 ### MOSTA
 
-1. Install `cytobridge-spatial` and activate the `cb_pipeline` environment.
+1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
 2. Clone this repository.
 3. Run `bash scripts/download_reviewer_assets.sh`.
 4. Open any curated notebook under `notebooks/mosta/`.
@@ -120,7 +120,7 @@ The script downloads:
 
 ### ARISTA
 
-1. Install `cytobridge-spatial` and activate the `cb_pipeline` environment.
+1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
 2. Clone this repository.
 3. Run `bash scripts/download_reviewer_assets.sh`.
 4. Open any notebook under `notebooks/arista/`.
@@ -128,14 +128,14 @@ The script downloads:
 
 ### AD Mouse
 
-1. Install `cytobridge-spatial` and activate the `cb_pipeline` environment.
+1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
 2. Clone this repository.
 3. Open any notebook under `notebooks/admouse/`.
 4. Run all cells.
 
 ### Zebrafish
 
-1. Install `cytobridge-spatial` and activate the `cb_pipeline` environment.
+1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
 2. Clone this repository.
 3. Open `notebooks/zebrafish/zebrafish_api_subfigures.ipynb`.
 4. Run all cells.
