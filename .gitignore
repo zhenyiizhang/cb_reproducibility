@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Reviewer assets are published as GitHub Release files because GitHub rejects
+# regular Git blobs larger than 100MB.
+data/mosta/mosta_four_time_with_celltype_refined.csv
+results/arista_spatiotemporal_3d_focus_anchor_notebook/attention/attn_interp_t*.npy

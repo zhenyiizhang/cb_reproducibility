@@ -1,0 +1,34 @@
+{
+  "lr_pair": "Wnt3a_Fzd7_Lrp6",
+  "hotspot_mode": "total",
+  "norm_mode": "per_panel",
+  "q_low": 1.0,
+  "q_high": 99.0,
+  "cmap": "incoming_pastel",
+  "point_size": 3.0,
+  "alpha": 0.95,
+  "fig_width": 11.0,
+  "fig_height": 3.8,
+  "dpi": 500,
+  "panels": [
+    {
+      "label": "E12.5",
+      "csv": "panel_e12p5.csv",
+      "invert_y": true,
+      "type_scores_csv": "Wnt3a_Fzd7_Lrp6_tE12.5_type_scores.csv"
+    },
+    {
+      "label": "t=0.5",
+      "csv": "panel_t0p5.csv",
+      "invert_y": false,
+      "type_scores_csv": "Wnt3a_Fzd7_Lrp6_t0.5_type_scores.csv"
+    },
+    {
+      "label": "E13.5",
+      "csv": "panel_e13p5.csv",
+      "invert_y": true,
+      "type_scores_csv": "Wnt3a_Fzd7_Lrp6_tE13.5_type_scores.csv"
+    }
+  ],
+  "reference_stats_csv": "reference_total_hotspot_triptych_stats.csv"
+}

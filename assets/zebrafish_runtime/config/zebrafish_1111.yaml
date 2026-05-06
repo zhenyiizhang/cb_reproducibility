@@ -1,0 +1,45 @@
+exp:
+  name: "zebrafish_1111"
+  output_dir: "results"
+
+data:
+  file_path: "zebrafish_1108.csv"
+  dim: 52
+  hold_one_out: false
+  hold_out: 1
+
+model:
+  in_out_dim: 52
+  hidden_dim: 256
+  n_hiddens: 5
+  activation: "leakyrelu"
+  score_hidden_dim: 400
+  use_spatial: true
+  thre: 0.12
+  edge_predictor_path: "zebrafish.pt"
+  edge_predictor_thre: 0.63
+
+pretrain:
+  epochs: 500
+  lr: 0.0001
+  lambda_ot: 1.0
+  lambda_mass: 0.01
+  lambda_energy: 0.0
+
+score_train:
+  epochs: 2001
+  lr: 0.0001
+  lambda_penalty: 0
+  sigma: 0.03
+  score_batch_size: 128
+
+train:
+  epochs: 1000
+  lr: 0.0001
+  lambda_ot: 10
+  lambda_mass: 10
+  lambda_energy: 0.01
+  lambda_pinn: 100
+  lambda_initial: 0.1
+  scheduler_step_size: 100
+  scheduler_gamma: 0.8

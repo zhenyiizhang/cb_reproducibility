@@ -1,0 +1,10 @@
+{
+  "Astrocytes": "#1f77b4",
+  "Excitatory neurons": "#ff7f0e",
+  "Fibroblast": "#2ca02c",
+  "Inhibitory neurons": "#d62728",
+  "Microglia": "#9467bd",
+  "OPC": "#8c564b",
+  "Oligodendrocytes": "#e377c2",
+  "Pericytes/Endothelial": "#7f7f7f"
+}
