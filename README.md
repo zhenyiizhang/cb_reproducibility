@@ -17,13 +17,13 @@ pip install -e .
 
 Then clone this repository and open the notebooks here in the same `cb_pipeline` environment.
 
-For the curated MOSTA notebooks listed below, no local path edits, external result directories, or manual cache setup are required. The required MOSTA assets are bundled in this repository under `assets/mosta/`.
+Most notebooks use paths relative to this repository. The MOSTA support files used by the notebooks are under `assets/mosta/`.
 
-The ARISTA notebooks are also self-contained after downloading the reviewer assets. The repository ships the legacy ARISTA model, edge classifier, annotation CSV, and classifier cache under `assets/arista/`, `data/arista/`, and `vendor/legacy_arista_stack/`, so reviewers can run the notebooks directly without pointing to an external Desktop checkout.
+The ARISTA notebooks use the legacy model, edge classifier, annotation CSV, and classifier cache under `assets/arista/`, `data/arista/`, and `vendor/legacy_arista_stack/`. The few large attention arrays are stored as release files; see "Large reviewer assets" below.
 
-The AD mouse notebooks use the runtime assets bundled under `assets/admouse/` together with the AD mouse inputs under `data/admouse/`.
+The AD mouse notebooks use the runtime files under `assets/admouse/` together with the AD mouse inputs under `data/admouse/`.
 
-The zebrafish notebook is also self-contained. The repository ships a minimal zebrafish runtime bundle under `assets/zebrafish_runtime/`, so reviewers can run the notebook directly without preparing external data paths.
+The zebrafish notebook uses the runtime files under `assets/zebrafish_runtime/`.
 
 ## Layout
 
@@ -42,9 +42,17 @@ The zebrafish notebook is also self-contained. The repository ships a minimal ze
 - `data/arista/`: ARISTA input CSV used by the legacy reviewer notebooks
 - `data/admouse/`: local AD mouse inputs expected by the AD mouse notebooks
 
+## Data
+
+The processed files under `data/` are included here when they are small enough for Git. A copy of the `data/` directory is also available on Google Drive:
+
+https://drive.google.com/drive/folders/1L_TjHU4TsbY8dc6QJlhWqnKaQl6QWBfV?usp=sharing
+
+The larger files needed by the notebooks are listed in the next section.
+
 ## Large reviewer assets
 
-GitHub rejects regular Git files larger than 100MB. The large reviewer inputs are therefore published as assets on the `reviewer-assets-v1` GitHub Release, while this repository keeps the code, notebooks, and smaller cached outputs in Git.
+GitHub blocks regular Git files larger than 100MB. For that reason, a few large reviewer files are attached to the `reviewer-assets-v1` GitHub Release instead of being committed to the repository.
 
 After cloning the repository, restore the large files to their expected paths:
 
@@ -73,7 +81,7 @@ The script downloads:
   Runs the complete MOSTA baseline video workflow from model output generation to frame export and GIF assembly.
 
 - `notebooks/mosta/mosta_telencephalon_velocity_stream_grid.ipynb`
-  Reproduces the telencephalon velocity stream/grid plots from the bundled MOSTA assets.
+  Reproduces the telencephalon velocity stream/grid plots from the MOSTA files in `assets/mosta/`.
 
 - `notebooks/mosta/mosta_velocity_communication_focus_brain_t3.ipynb`
   Reproduces the MOSTA velocity communication focus plots at brain timepoint 3.
@@ -106,7 +114,7 @@ The script downloads:
   Reproduces the AD mouse spatial comparison panels from the local interpolated AD mouse slices.
 
 - `notebooks/zebrafish/zebrafish_api_subfigures.ipynb`
-  Generates zebrafish downstream subfigures through package-backed APIs and the bundled zebrafish runtime.
+  Generates zebrafish downstream subfigures through package-backed APIs and the files in `assets/zebrafish_runtime/`.
 
 ## Reviewer reproduction
 
@@ -115,7 +123,7 @@ The script downloads:
 1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
 2. Clone this repository.
 3. Run `bash scripts/download_reviewer_assets.sh`.
-4. Open any curated notebook under `notebooks/mosta/`.
+4. Open any notebook under `notebooks/mosta/`.
 5. Run all cells.
 
 ### ARISTA
