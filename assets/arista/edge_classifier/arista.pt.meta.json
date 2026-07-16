@@ -1,0 +1,8 @@
+{
+  "artifact_role": "released_arista_edge_classifier",
+  "edge_predictor_threshold_selected": 0.45,
+  "interaction_cutoff": 0.05,
+  "model_sha256": "ccefea1cc68cac35c10337aa8679e03c5d61526d18415409486c3e4cf967fc40",
+  "selection_source": "published_legacy_config",
+  "source_config": "vendor/legacy_arista_stack/config/arista_config.yaml"
+}
