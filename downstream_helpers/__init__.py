@@ -32,6 +32,15 @@ from .arista_legacy import (
     run_arista_legacy_spatiotemporal_3d,
     run_arista_legacy_velocity_spatial_direction_correlation_roi,
 )
+from .arista_api import (
+    AristaApiPaths,
+    AristaVelocityConfig,
+    AristaVelocityResult,
+    assert_package_only_runtime,
+    load_arista_api_context,
+    resolve_arista_api_paths,
+    run_arista_velocity_t1_streams,
+)
 from .runner import (
     export_plotly_figure,
     display_image_outputs,
@@ -73,6 +82,13 @@ __all__ = [
     "AristaLegacyGrowthInteractionBubbleResult",
     "AristaLegacyVelocityCorrelationConfig",
     "AristaLegacyVelocityCorrelationResult",
+    "AristaApiPaths",
+    "AristaVelocityConfig",
+    "AristaVelocityResult",
+    "assert_package_only_runtime",
+    "load_arista_api_context",
+    "resolve_arista_api_paths",
+    "run_arista_velocity_t1_streams",
     "resolve_arista_legacy_output_dir",
     "run_arista_legacy_growth_interaction_celltype_bubble",
     "run_arista_legacy_lineage_snapshot",

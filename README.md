@@ -4,11 +4,11 @@ This repository contains dataset-specific downstream analysis notebooks built on
 
 ## Usage
 
-Install `CytoBridge` first by following the installation steps in the main `cb_pipeline` repository:
+Install `CytoBridge` first from the main `cytobridge-spatial` repository:
 
 ```bash
-git clone <cb_pipeline-repo>
-cd cb_pipeline
+git clone https://github.com/zhenyiizhang/cytobridge-spatial.git
+cd cytobridge-spatial
 
 conda env create -f environment.yml
 conda activate cb_pipeline
@@ -19,7 +19,7 @@ Then clone this repository and open the notebooks here in the same `cb_pipeline`
 
 Most notebooks use paths relative to this repository. The MOSTA support files used by the notebooks are under `assets/mosta/`.
 
-The ARISTA notebooks use the legacy model, edge classifier, annotation CSV, and classifier cache under `assets/arista/`, `data/arista/`, and `vendor/legacy_arista_stack/`. The few large attention arrays are stored as release files; see "Large reviewer assets" below.
+The canonical ARISTA workflow loads the trained model, edge classifier, and annotated model-input CSV under `assets/arista/` and `data/arista/` through the installed `CytoBridge` API. It does not import `vendor/legacy_arista_stack`. Older parity notebooks remain temporarily available as migration references while their figures are ported one by one. The few large attention arrays are stored as release files; see "Large reviewer assets" below.
 
 The AD mouse notebooks use the runtime files under `assets/admouse/` together with the AD mouse inputs under `data/admouse/`.
 
@@ -39,7 +39,7 @@ The zebrafish notebook uses the runtime files under `assets/zebrafish_runtime/`.
 - `assets/zebrafish/`: small zebrafish metadata assets needed by the public wrappers
 - `assets/zebrafish_runtime/`: minimal zebrafish runtime bundle used by the zebrafish notebook and CLI
 - `data/mosta/`: MOSTA input CSV used by the reproduction runner
-- `data/arista/`: ARISTA input CSV used by the legacy reviewer notebooks
+- `data/arista/`: ARISTA 52-dimensional annotated model-input CSV used for checkpoint inference
 - `data/admouse/`: local AD mouse inputs expected by the AD mouse notebooks
 
 ## Data
@@ -71,6 +71,13 @@ The script downloads:
 
 ## Current notebooks
 
+- `notebooks/arista/arista_velocity_t1_streams_api.ipynb`
+  Canonical package-backed ARISTA example. It loads the trained checkpoint with
+  `CytoBridge.tl.load_legacy_dynamical_model_from_dir`, computes the velocity
+  decomposition with `CytoBridge.tl.compute_velocity_components`, and renders
+  the six t1 panels with `CytoBridge.pl.plot_velocity_component`. The notebook
+  fails if the external vendored `DeepRUOT` runtime is imported.
+
 - `notebooks/mosta/mosta_interpolated_slices.ipynb`
   Runs MOSTA with piecewise spatial warp and displays the interpolated slice snapshots.
 
@@ -90,19 +97,19 @@ The script downloads:
   Reproduces the Wnt3a-Fzd7-Lrp6 total hotspot triptych figure from local copied plotting inputs.
 
 - `notebooks/arista/arista_lineage_snapshot_focus_anchor.ipynb`
-  Runs the ARISTA legacy focus-anchor lineage pipeline and displays the lineage Sankey together with the timepoint snapshots.
+  Legacy migration reference; not part of the canonical package-backed workflow yet.
 
 - `notebooks/arista/arista_spatiotemporal_3d_focus_anchor.ipynb`
-  Runs the ARISTA legacy focus-anchor 3D communication pipeline and displays reviewer-facing static exports.
+  Legacy migration reference; not part of the canonical package-backed workflow yet.
 
 - `notebooks/arista/arista_growth_interaction_celltype_bubble.ipynb`
-  Reproduces the ARISTA growth-versus-interaction cell-type bubble plot through the legacy runtime.
+  Legacy migration reference; not part of the canonical package-backed workflow yet.
 
 - `notebooks/arista/arista_velocity_spatial_direction_correlation_roi_t1_scvelo_only.ipynb`
-  Reproduces the ARISTA ROI cosine-correlation panel at timepoint 1 using scVelo smoothing only.
+  Legacy migration reference; not part of the canonical package-backed workflow yet.
 
 - `notebooks/arista/arista_velocity_t1_streams.ipynb`
-  Reproduces the ARISTA `scvelo_streams` family at timepoint 1 for intrinsic, interaction, and full velocity in spatial and gene views.
+  Archived legacy implementation superseded by `arista_velocity_t1_streams_api.ipynb`.
 
 - `notebooks/admouse/admouse_gene_expression.ipynb`
   Reproduces the AD mouse gene-expression view from the local AD mouse runtime and plotting inputs.
@@ -128,11 +135,25 @@ The script downloads:
 
 ### ARISTA
 
-1. Install the main `cb_pipeline` repository and activate the `cb_pipeline` environment.
+1. Install the main `cytobridge-spatial` repository and activate its isolated environment.
 2. Clone this repository.
-3. Run `bash scripts/download_reviewer_assets.sh`.
-4. Open any notebook under `notebooks/arista/`.
-5. Run all cells.
+3. Open `notebooks/arista/arista_velocity_t1_streams_api.ipynb`.
+4. Run all cells. For a quick smoke test, set `CYTOBRIDGE_MAX_CELLS=256` before starting Jupyter; leave it unset for the complete t1 slice.
+
+The same workflow is available as a non-interactive command. With the portable
+assets committed to this repository, no workspace override is required:
+
+```bash
+python scripts/arista_velocity_t1_streams_api.py \
+  --device cuda \
+  --output-dir results/arista_velocity_t1_streams_api
+```
+
+To use the original project workspace on the shared server instead, add
+`--workspace-root /data/cytobridge/projects/CytoBridge-ST-1104/workspace`.
+The run manifest records resolved paths, SHA-256 hashes, the installed
+`CytoBridge` module, model stages, and the velocity-decomposition identity
+check.
 
 ### AD Mouse
 
