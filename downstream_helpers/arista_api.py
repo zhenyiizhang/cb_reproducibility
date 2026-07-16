@@ -23,6 +23,8 @@ import pandas as pd
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 from CytoBridge.pl import (
+    plot_enrichment_bar,
+    plot_enrichment_dot,
     plot_celltype_composition,
     plot_growth_interaction_bubble,
     plot_growth_timepoint_grid,
@@ -43,10 +45,12 @@ from CytoBridge.tl import (
     infer_time_key,
     load_dynamical_model_from_dir,
     load_label_to_color,
+    load_gmt_gene_sets,
     load_legacy_dynamical_model_from_dir,
     load_pca_reconstruction_spec,
     plot_lineage_sankey,
     plot_spatiotemporal_3d,
+    overrepresentation_analysis,
     project_communication_to_lr_timecourses,
     run_interpolation_workflow,
     save_timepoint_snapshots,
@@ -193,6 +197,8 @@ class AristaTemporalProgramsResult:
     gene_pattern_figure: Path
     lr_prototype_figure: Path
     lr_profiles_figure: Path
+    gene_enrichment_csv: Path | None
+    gene_enrichment_figures: tuple[Path, ...]
 
 
 def _require_file(path: Path, description: str) -> Path:
@@ -1042,11 +1048,13 @@ def run_arista_temporal_programs_api(
     lr_database: str | Path,
     reference_h5ad: str | Path | None = None,
     n_top_genes: int = 250,
+    n_gene_cluster_genes: int | None = None,
     n_gene_clusters: int = 2,
     n_lr_clusters: int = 2,
     pca_components_csv: str | Path | None = None,
     pca_center_csv: str | Path | None = None,
     preferred_species_tag: str | None = "hs",
+    gene_profile_normalization: str = "zscore",
     gene_profile_linkage_method: str = "average",
     gene_profile_cluster_order: str = "peak_time",
     lr_profile_linkage_method: str = "average",
@@ -1054,6 +1062,13 @@ def run_arista_temporal_programs_api(
     communication_max_cells_per_timepoint: int | None = None,
     communication_random_seed: int = 42,
     communication_rng_warmup_max_cells_per_timepoint: int | None = None,
+    gene_set_gmt: str | Path | None = None,
+    gene_set_min_size: int = 5,
+    gene_set_max_size: int | None = 5000,
+    gene_set_min_overlap: int = 2,
+    gene_set_alpha: float = 0.05,
+    gene_set_top_terms: int = 20,
+    gene_set_background: str = "expression",
 ) -> AristaTemporalProgramsResult:
     """Recompute ARISTA gene and LR temporal programs through package APIs."""
     import anndata as ad
@@ -1152,9 +1167,11 @@ def run_arista_temporal_programs_api(
         time_points=interpolation.ts_points,
         spatial_dim=2,
         n_top_genes=int(n_top_genes),
+        n_cluster_genes=n_gene_cluster_genes,
         n_clusters=int(n_gene_clusters),
         preferred_species_tag=preferred_species_tag,
         pca_reconstruction=pca_reconstruction,
+        profile_normalization=gene_profile_normalization,
         profile_linkage_method=gene_profile_linkage_method,
         profile_cluster_order=gene_profile_cluster_order,
     )
@@ -1186,6 +1203,9 @@ def run_arista_temporal_programs_api(
     gene.clustering.normalized_profiles.to_csv(
         tables_dir / "gene_normalized_profiles.csv"
     )
+    gene.clustering.assignments.to_csv(
+        tables_dir / "gene_pattern_assignments.csv", index=False
+    )
     gene.clustering.prototypes.to_csv(
         tables_dir / "gene_pattern_prototypes.csv", index=False
     )
@@ -1210,6 +1230,72 @@ def run_arista_temporal_programs_api(
     lr.clustering.diagnostics.to_csv(
         tables_dir / "lr_pattern_diagnostics.csv", index=False
     )
+
+    gene_set_path = None
+    gene_enrichment_csv = None
+    gene_enrichment_figures: list[Path] = []
+    gene_enrichment_significant_counts: dict[int, int] = {}
+    if gene_set_gmt is not None:
+        if gene_set_background not in {"expression", "library"}:
+            raise ValueError(
+                "gene_set_background must be 'expression' or 'library'."
+            )
+        gene_set_path = _require_file(Path(gene_set_gmt), "gene-set GMT")
+        library = load_gmt_gene_sets(gene_set_path)
+        symbol_map = gene.gene_name_map.set_index("gene")["gene_symbol"]
+        assignments = gene.clustering.assignments.copy()
+        assignments["gene_symbol"] = assignments["profile"].map(symbol_map)
+        background_symbols = gene.gene_name_map["gene_symbol"].dropna().astype(str)
+        enrichment_tables = []
+        for cluster, subset in assignments.groupby("cluster", sort=True):
+            enrichment = overrepresentation_analysis(
+                subset["gene_symbol"].dropna().astype(str).tolist(),
+                library,
+                background_genes=(
+                    background_symbols.tolist()
+                    if gene_set_background == "expression"
+                    else None
+                ),
+                min_set_size=int(gene_set_min_size),
+                max_set_size=(
+                    int(gene_set_max_size)
+                    if gene_set_max_size is not None
+                    else None
+                ),
+                min_overlap=int(gene_set_min_overlap),
+                alpha=float(gene_set_alpha),
+            )
+            enrichment.insert(0, "cluster", int(cluster))
+            enrichment_tables.append(enrichment)
+            gene_enrichment_significant_counts[int(cluster)] = int(
+                enrichment["significant"].sum()
+            )
+        combined_enrichment = pd.concat(enrichment_tables, ignore_index=True)
+        gene_enrichment_csv = tables_dir / "gene_pattern_enrichment.csv"
+        combined_enrichment.to_csv(gene_enrichment_csv, index=False)
+        for cluster, subset in combined_enrichment.groupby("cluster", sort=True):
+            if subset.empty:
+                continue
+            significant_subset = subset.loc[subset["significant"]].copy()
+            plot_subset = significant_subset if not significant_subset.empty else subset
+            gene_enrichment_figures.extend(
+                [
+                    plot_enrichment_bar(
+                        plot_subset,
+                        out_path=figures_dir
+                        / f"gene_pattern_{int(cluster)}_enrichment_bar.svg",
+                        top_n=int(gene_set_top_terms),
+                        title=f"ARISTA Pattern {int(cluster)} gene-set enrichment",
+                    ),
+                    plot_enrichment_dot(
+                        plot_subset,
+                        out_path=figures_dir
+                        / f"gene_pattern_{int(cluster)}_enrichment_dot.svg",
+                        top_n=int(gene_set_top_terms),
+                        title=f"ARISTA Pattern {int(cluster)} gene-set enrichment",
+                    ),
+                ]
+            )
 
     gene_heatmap = plot_temporal_gene_heatmap(
         gene.expression,
@@ -1266,13 +1352,23 @@ def run_arista_temporal_programs_api(
             else None,
             "lr_database": str(lr_path),
             "lr_database_sha256": _sha256(lr_path),
+            "gene_set_gmt": str(gene_set_path) if gene_set_path else None,
+            "gene_set_gmt_sha256": _sha256(gene_set_path)
+            if gene_set_path
+            else None,
             "model_dir": str(context["model_dir"]),
         },
         "settings": {
             "n_top_genes": int(n_top_genes),
+            "n_gene_cluster_genes": (
+                int(n_gene_cluster_genes)
+                if n_gene_cluster_genes is not None
+                else int(n_top_genes)
+            ),
             "n_gene_clusters": int(n_gene_clusters),
             "n_lr_clusters": int(n_lr_clusters),
             "preferred_species_tag": preferred_species_tag,
+            "gene_profile_normalization": gene_profile_normalization,
             "gene_profile_linkage_method": gene_profile_linkage_method,
             "gene_profile_cluster_order": gene_profile_cluster_order,
             "lr_profile_linkage_method": lr_profile_linkage_method,
@@ -1284,10 +1380,39 @@ def run_arista_temporal_programs_api(
             ),
             "remove_self_loop": True,
             "communication_matrix": "M_per_source",
+            "gene_set_min_size": int(gene_set_min_size),
+            "gene_set_max_size": (
+                int(gene_set_max_size) if gene_set_max_size is not None else None
+            ),
+            "gene_set_min_overlap": int(gene_set_min_overlap),
+            "gene_set_alpha": float(gene_set_alpha),
+            "gene_set_top_terms": int(gene_set_top_terms),
+            "gene_set_background": gene_set_background,
         },
         "summary": {
             "time_points": interpolation.ts_points,
             "n_gene_profiles": int(gene.top_variable_genes.shape[0]),
+            "n_gene_cluster_profiles": int(
+                gene.clustering.assignments.shape[0]
+            ),
+            "gene_cluster_counts": gene.clustering.assignments["cluster"]
+            .value_counts()
+            .sort_index()
+            .to_dict(),
+            "gene_enrichment_significant_counts": (
+                gene_enrichment_significant_counts
+            ),
+            "gene_enrichment_background_sizes": (
+                sorted(
+                    combined_enrichment["background_size"]
+                    .dropna()
+                    .astype(int)
+                    .unique()
+                    .tolist()
+                )
+                if gene_enrichment_csv is not None
+                else []
+            ),
             "n_lr_pairs": int(lr.pattern_summary.shape[0]),
             "lr_cluster_counts": lr.pattern_summary["cluster"]
             .value_counts()
@@ -1302,6 +1427,12 @@ def run_arista_temporal_programs_api(
             "gene_pattern_figure": str(gene_pattern_figure),
             "lr_prototype_figure": str(lr_prototype_figure),
             "lr_profiles_figure": str(lr_profiles_figure),
+            "gene_enrichment_csv": str(gene_enrichment_csv)
+            if gene_enrichment_csv
+            else None,
+            "gene_enrichment_figures": [
+                str(path) for path in gene_enrichment_figures
+            ],
         },
     }
     manifest_path = output_dir / "run_manifest.json"
@@ -1318,6 +1449,8 @@ def run_arista_temporal_programs_api(
         gene_pattern_figure=gene_pattern_figure,
         lr_prototype_figure=lr_prototype_figure,
         lr_profiles_figure=lr_profiles_figure,
+        gene_enrichment_csv=gene_enrichment_csv,
+        gene_enrichment_figures=tuple(gene_enrichment_figures),
     )
 
 

@@ -111,8 +111,9 @@ The script downloads:
 - `notebooks/arista/arista_temporal_gene_lr_patterns_api.ipynb`
   Recomputes dense-time gene programs and expression-aware ligand-receptor
   trajectories for Supplementary Figures S15-S17. PCA inversion, temporal
-  clustering, LR projection, and plotting are package APIs; the notebook only
-  supplies the ARISTA reference H5AD, LR database, time grid, and cluster count.
+  clustering, offline GMT enrichment, LR projection, and plotting are package
+  APIs; the notebook only supplies the ARISTA reference H5AD, LR database,
+  gene-set GMT, time grid, and cluster count.
   Its prospective default prefers human-tagged symbols (89 LR pairs on these
   inputs); the explicit paper-parity mode loads archived PCA sidecars and uses
   the historical first-symbol rule (68 pairs).
@@ -204,6 +205,7 @@ that retains `varm['PCs']` and the ligand-receptor database:
 ```bash
 export ARISTA_REFERENCE_H5AD=/path/to/arista-full/preprocess/arista_aligned.h5ad
 export ARISTA_LR_DATABASE=/path/to/CellChatDB.ligrec.human.csv
+export ARISTA_GENE_SET_GMT=/path/to/GO_Biological_Process_2023.gmt
 ```
 
 The older source H5AD contains PCA coordinates but not the complete inverse-PCA
@@ -221,8 +223,13 @@ export ARISTA_CLASSIFIER_CACHE_PATH=/path/to/classifier_resmlp.pt
 
 Paper-parity mode uses 3,072 particles, KNN=10, the split-SDE-only legacy
 simulation contract, first-symbol ligand/receptor mapping, Ward linkage, and
-dendrogram order. It reproduces the historical 68-pair input set without
-embedding ARISTA-specific parsing in the package.
+dendrogram order. It also uses the complete GMT library as the S15 enrichment
+background, mirroring the archived table's organism-wide rather than
+expression-only contract; prospective mode uses the reconstructed expression
+genes as the explicit background. The exact universe remains database-version
+dependent: the fixed Enrichr GO BP 2023 GMT has 14,698 genes, whereas the
+archived clusterProfiler BP table records 18,870. It reproduces the historical
+68-pair input set without embedding ARISTA-specific parsing in the package.
 
 For a quantitative saved-versus-retrained comparison, first complete the
 package full run, then evaluate the published checkpoint with exactly the same
@@ -300,6 +307,13 @@ silently forcing the historical labels.
 Use `scripts/compare_temporal_lr_runs.py` to compare any two completed temporal
 runs. It writes score correlations, pairwise trajectory correlations/min-max
 RMSE, cluster agreement/ARI/NMI, merged tables, and a comparison figure.
+
+Use `scripts/enrich_arista_temporal_gene_patterns.py` to add full 2,000-gene
+offline GMT enrichment to an existing package-generated temporal run. The
+script records the GMT hash and background contract. For an exact visual redraw
+of the archived S15 GO tables, use
+`scripts/redraw_arista_frozen_s15_enrichment.py`; it only adapts the historical
+clusterProfiler columns, then calls the public CytoBridge plotting API.
 
 The same workflow is available as a non-interactive command. With the portable
 assets committed to this repository, no workspace override is required:
