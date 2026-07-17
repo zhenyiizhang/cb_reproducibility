@@ -805,9 +805,10 @@ panels. It contains {n_files} copied source artifacts. The canonical run remains
 - **Formal downstream:** lineage ribbons use non-split fixed-particle identities;
   generated populations and communication use split SDE. Spatial piecewise warp is
   disabled, and classifier spatial refinement is `k=1` (effectively disabled).
-- **Display-only warp:** the S12 mosaic/video and Figure 5b slice may use the legacy
-  continuous piecewise spatial warp. Labels, communication, and subsequent dynamics
-  continue from pre-warp state; the warped coordinates are presentation-only.
+- **Display-only warp:** only the alternate S12 mosaic/video uses the legacy
+  continuous piecewise spatial warp. Figure 5b remains part of the formal no-warp
+  run. Labels and subsequent dynamics continue from pre-warp state; the warped
+  coordinates are presentation-only and no communication is computed in that run.
 - **Temporal S15-S17:** paper-parity temporal classification uses spatial KNN `k=10`.
   This is intentionally different from the formal lineage/communication `k=1` run.
 - **Weights:** non-split W1/W2/TMV evaluation uses particle-mass weights. Split-SDE
@@ -832,8 +833,8 @@ Split-panel models:
 - `03_main_figure5`: Figure 5a-e panel exports.
 - `04_supplement_S12_S14`: dense maps/video, growth, Sankey, and composition.
 - `05_temporal_S15_S17`: temporal gene, enrichment, and LR pattern outputs.
-- `06_formal_no_warp_sidecars`: formal trajectories, communication, classifier,
-  attention, and interactive figures.
+- `06_formal_no_warp_sidecars`: formal communication, classifier, attention, and
+  interactive figures.
 - `07_manifests`: copied run/configuration manifests.
 - `08_logs`: execution logs.
 

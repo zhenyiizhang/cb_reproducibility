@@ -225,6 +225,16 @@ classifier prediction unchanged. The output directory contains
 `celltype_composition.*` (S14b), the attention/communication artifacts, the
 classifier cache, `run_manifest.json`, and `formal_panel_index.json`.
 
+Figure 5e has a matching full-data command adapter:
+
+```bash
+python scripts/run_arista_growth_interaction_api.py \
+  --aligned-h5ad /path/to/arista-full/preprocess/arista_aligned.h5ad \
+  --model-dir /path/to/arista-full/training \
+  --output-dir /path/to/new-review-folder/figure5e \
+  --device cuda --random-seed 42
+```
+
 The prospective S15-S17 workflow requires a package-processed reference H5AD
 that retains `varm['PCs']` and the ligand-receptor database:
 
@@ -233,6 +243,10 @@ export ARISTA_REFERENCE_H5AD=/path/to/arista-full/preprocess/arista_aligned.h5ad
 export ARISTA_LR_DATABASE=/path/to/CellChatDB.ligrec.human.csv
 export ARISTA_GENE_SET_GMT=/path/to/GO_Biological_Process_2023.gmt
 ```
+
+For the clean-counts current model, the equivalent non-notebook entry point is
+`scripts/run_arista_temporal_programs_api.py`. It deliberately accepts no
+legacy PCA-loading sidecars and uses the aligned H5AD's own `varm['PCs']`.
 
 The older source H5AD contains PCA coordinates but not the complete inverse-PCA
 contract. For a declared historical reproduction, provide the archived loading
