@@ -199,6 +199,32 @@ Both modes execute `CytoBridge.tl.run_interpolation_workflow`,
 `plot_spatiotemporal_3d`; the compatibility loader changes only how the saved
 published model is instantiated.
 
+For the formal current-model Figure 5a/5b and S13/S14 rerun, use the single
+no-warp command below. It fits a fresh classifier by default and refuses a
+non-empty cache directory unless reuse is requested explicitly:
+
+```bash
+CUDA_VISIBLE_DEVICES=7 python scripts/run_arista_formal_panels_api.py \
+  --aligned-h5ad /path/to/arista-full/preprocess/arista_aligned.h5ad \
+  --model-dir /path/to/arista-full/training \
+  --output-dir /path/to/new-review-folder/formal-no-warp \
+  --device cuda \
+  --random-seed 42 \
+  --classifier-knn-neighbors 1
+```
+
+The defaults are the full formal contract: current checkpoint, observed model
+times `0,1,2,3,4`, interpolated times `0.5,1.5,2.5,3.5`, 7,668 particles,
+non-split `dt=0.05`, split `dt=0.01`, split `sigma=0.03`, no piecewise spatial
+warp, and recomputed communication plus the 3D panel. Non-split fixed particles
+are used for lineage ribbons/Sankey; split-SDE populations are used for
+generated clouds and communication. With `k=1`, KNN refinement leaves each raw
+classifier prediction unchanged. The output directory contains
+`spatiotemporal_3d.*` (Figure 5a), `snapshots/time_0.5.*` (Figure 5b),
+`growth_dense_time_grid.*` (S13), `lineage_sankey.*` (S14a),
+`celltype_composition.*` (S14b), the attention/communication artifacts, the
+classifier cache, `run_manifest.json`, and `formal_panel_index.json`.
+
 The prospective S15-S17 workflow requires a package-processed reference H5AD
 that retains `varm['PCs']` and the ligand-receptor database:
 
