@@ -12,6 +12,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import shutil
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -23,6 +24,7 @@ import pandas as pd
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 from CytoBridge.pl import (
+    gene_velocity_embeddings_from_adata,
     plot_enrichment_bar,
     plot_enrichment_dot,
     plot_celltype_composition,
@@ -134,6 +136,7 @@ class AristaSpatiotemporalConfig:
     split_growth_alpha: float = 1.0
     use_real_for_observed: bool = True
     spatial_warp_to_observed_piecewise: bool = True
+    spatial_warp_visualization_only: bool = True
     spatial_warp_k: int = 8
     spatial_warp_eps: float = 1e-6
     classifier_cache_path: str | Path | None = None
@@ -147,6 +150,8 @@ class AristaSpatiotemporalConfig:
     device: str = "cpu"
     run_communication: bool = True
     run_3d: bool = True
+    publication_3d_layout: bool = True
+    highlight_3d_endpoints: bool = True
 
 
 @dataclass(frozen=True)
@@ -758,10 +763,26 @@ def _run_arista_interpolation(
         spatial_warp_to_observed_piecewise=bool(
             config.spatial_warp_to_observed_piecewise
         ),
+        spatial_warp_visualization_only=bool(
+            config.spatial_warp_visualization_only
+        ),
         spatial_warp_k=int(config.spatial_warp_k),
         spatial_warp_eps=float(config.spatial_warp_eps),
         random_seed=int(config.random_seed),
     )
+
+
+def _require_persistent_lineage_labels(interpolation):
+    """Return fixed-particle labels; split populations have no row identity."""
+    lineage_labels = interpolation.predicted_labels_list
+    if lineage_labels is None or len(lineage_labels) == 0:
+        raise RuntimeError(
+            "ARISTA lineage Sankey and 3D lineage ribbons require non-split "
+            "fixed-particle labels. Split-SDE birth/death rows are population "
+            "samples and cannot be paired by row index as persistent lineages. "
+            "Set skip_nonsplit_sde=False."
+        )
+    return lineage_labels
 
 
 def run_arista_spatiotemporal_api(
@@ -769,6 +790,12 @@ def run_arista_spatiotemporal_api(
 ) -> AristaSpatiotemporalResult:
     """Run ARISTA interpolation, lineage, communication, and 3D package APIs."""
     config = config or AristaSpatiotemporalConfig()
+    if config.skip_nonsplit_sde:
+        raise ValueError(
+            "run_arista_spatiotemporal_api always renders a lineage Sankey, so "
+            "skip_nonsplit_sde=True is unsafe. Split-SDE birth/death rows do not "
+            "carry persistent lineage identities; set skip_nonsplit_sde=False."
+        )
     set_global_random_seed(config.random_seed)
     context = load_arista_spatiotemporal_context(config)
     output_dir = (
@@ -789,11 +816,12 @@ def run_arista_spatiotemporal_api(
         output_dir=output_dir,
         classifier_cache_dir=classifier_cache_dir,
     )
+    lineage_labels = _require_persistent_lineage_labels(interpolation)
 
     observed_variants = {}
     if (
         interpolation.sde_points_split is not None
-        and interpolation.predicted_labels_split is not None
+        and interpolation.slice_labels_split is not None
     ):
         for time_value in config.time_points:
             idx = interpolation.ts_points.index(float(time_value))
@@ -811,7 +839,7 @@ def run_arista_spatiotemporal_api(
                     np.asarray(interpolation.sde_points_split[idx], dtype=np.float32)[
                         :, :2
                     ],
-                    np.asarray(interpolation.predicted_labels_split[idx]).astype(str),
+                    np.asarray(interpolation.slice_labels_split[idx]).astype(str),
                 ),
             }
 
@@ -833,13 +861,6 @@ def run_arista_spatiotemporal_api(
         save_pdf=True,
     )
 
-    lineage_labels = (
-        interpolation.predicted_labels_list
-        if interpolation.predicted_labels_list is not None
-        else interpolation.predicted_labels_split
-    )
-    if lineage_labels is None:
-        raise RuntimeError("Interpolation did not produce trajectory labels.")
     lineage_html = output_dir / "lineage_sankey.html"
     lineage_fig = plot_lineage_sankey(
         predicted_labels_list=lineage_labels,
@@ -896,7 +917,7 @@ def run_arista_spatiotemporal_api(
     if config.run_communication:
         communications_pickle = output_dir / "all_time_communications.pkl"
         communications = compute_timepoint_communications(
-            adata_dict=interpolation.adata_dict,
+            adata_dict=interpolation.communication_adata_dict,
             time_points=interpolation.ts_points,
             annotation_key=config.annotation_key,
             f_net=context["runtime"].f_net,
@@ -946,6 +967,9 @@ def run_arista_spatiotemporal_api(
             focus_anchor_frac=0.2,
             focus_anchor_k=None,
             focus_anchor_min_count=None,
+            highlight_endpoints=bool(config.highlight_3d_endpoints),
+            endpoint_size=6,
+            endpoint_opacity=0.9,
             bidirectional_offset=0.2,
             bidirectional_curve=True,
             bidirectional_curve_points=18,
@@ -970,6 +994,20 @@ def run_arista_spatiotemporal_api(
             width=1200,
             height=900,
         )
+        if config.publication_3d_layout:
+            plot_fig.update_layout(
+                scene_camera=dict(
+                    eye=dict(x=1.7, y=1.0, z=0.9),
+                    projection=dict(type="orthographic"),
+                ),
+                margin=dict(l=10, r=10, t=10, b=10),
+                scene=dict(
+                    domain=dict(x=[0.0, 1.0], y=[0.0, 1.0]),
+                    aspectratio=dict(x=1.2, y=1.0, z=1.6),
+                ),
+                font=dict(family="Helvetica", size=16, color="#1a1a1a"),
+            )
+            plot_fig.write_html(str(spatiotemporal_html))
         static_exports["spatiotemporal_3d"] = _export_plotly_bundle(
             plot_fig,
             output_dir / "spatiotemporal_3d",
@@ -996,19 +1034,57 @@ def run_arista_spatiotemporal_api(
             "data_csv": str(context["data_csv"]) if context["data_csv"] else None,
             "model_dir": str(context["model_dir"]),
             "edge_predictor_root": str(context["edge_predictor_root"]),
-            "classifier_cache_path": (
-                str(context["classifier_cache_path"])
-                if context["classifier_cache_path"] is not None
-                else None
-            ),
+            "classifier_cache_path": interpolation.classifier_cache_path,
         },
         "model": _loaded_model_manifest(context["loaded"]),
         "dim": int(context["dim"]),
         "observed_time_points": interpolation.observed_time_points,
         "interpolated_time_points": interpolation.interp_points,
         "classifier_knn_neighbors": int(config.classifier_knn_neighbors),
+        "classifier": {
+            "cache_path": interpolation.classifier_cache_path,
+            "cache_sha256": (
+                _sha256(Path(interpolation.classifier_cache_path))
+                if interpolation.classifier_cache_path is not None
+                and Path(interpolation.classifier_cache_path).is_file()
+                else None
+            ),
+            "validation_accuracy": interpolation.classifier_accuracy,
+            "validation_balanced_accuracy": interpolation.classifier_balanced_accuracy,
+            "metadata": interpolation.classifier_metadata,
+            "evaluation": interpolation.classifier_evaluation,
+            "knn_neighbors": int(config.classifier_knn_neighbors),
+            "knn_semantics": (
+                "disabled (raw MLP labels)"
+                if int(config.classifier_knn_neighbors) <= 1
+                else "within-slice spatial majority refinement"
+            ),
+        },
+        "trajectory_semantics": {
+            "lineage_identity_source": "non_split_fixed_particles",
+            "slice_population_source": "split_sde_birth_death",
+            "slice_coordinate_source": (
+                "piecewise_warped_spatial"
+                if config.spatial_warp_to_observed_piecewise
+                else "split_sde_state"
+            ),
+            "slice_label_source": (
+                "prewarp_split_state"
+                if config.spatial_warp_visualization_only
+                else "display_state"
+            ),
+            "communication_state_source": (
+                "prewarp_split_state"
+                if config.spatial_warp_visualization_only
+                else "display_state"
+            ),
+        },
+        "simulation_seeds": interpolation.simulation_seeds,
         "spatial_warp_to_observed_piecewise": bool(
             config.spatial_warp_to_observed_piecewise
+        ),
+        "spatial_warp_visualization_only": bool(
+            config.spatial_warp_visualization_only
         ),
         "static_exports": static_exports,
         "composition": {
@@ -1622,9 +1698,6 @@ def run_arista_direction_correlation_api(
         raise ValueError(
             "ARISTA velocity panels require two spatial and at least two PCA dimensions."
         )
-    pca_coordinates = np.asarray(components["features"], dtype=np.float32)[
-        :, spatial_dim : spatial_dim + 2
-    ]
     spatial_velocity_figure = output_dir / "full_velocity_spatial.svg"
     pca_velocity_figure = output_dir / "full_velocity_pca.svg"
     plot_velocity_component(
@@ -1637,20 +1710,44 @@ def run_arista_direction_correlation_api(
         basis="spatial",
         density=1.8,
         show_legend=True,
+        n_neighbors=int(n_neighbors),
     )
-    plot_velocity_component(
-        coords=pca_coordinates,
-        velocity=np.asarray(components["full"], dtype=np.float32)[
-            :, spatial_dim : spatial_dim + 2
-        ],
-        labels=labels,
+    all_labels = context["adata"].obs[config.annotation_key].astype(str).to_numpy()
+    keep_cell_types = sorted(
+        {
+            label
+            for label in all_labels
+            if label.endswith(("EGC", "EX", "IN")) or label.startswith("rIPC")
+        }
+    )
+    global_gene_dir = output_dir / "global_gene_velocity"
+    global_gene_outputs = gene_velocity_embeddings_from_adata(
+        adata=context["adata"],
+        dim=context["dim"],
+        model=context["loaded"].model,
+        out_dir=str(global_gene_dir),
         label_to_color=context["label_to_color"],
-        title=f"Gene/PCA velocity (t={selected_time:g})",
-        out_path=str(pca_velocity_figure),
-        basis="spatial",
-        density=1.6,
-        show_legend=False,
+        keep_cell_types=keep_cell_types,
+        device=config.device,
+        time_key=context["resolved_time_key"],
+        obsm_key=config.obsm_key,
+        spatial_key=config.spatial_key,
+        concat_spatial=config.concat_spatial,
+        annotation_column=config.annotation_key,
+        bases=("pca",),
+        color_keys=("cell_type",),
+        celltype_on_data=True,
+        output_format="svg",
+        reuse_velocity_if_present=False,
+        n_neighbors=30,
     )
+    global_pca_ondata = global_gene_dir / "velocity_gene_full_pca_celltype_ondata.svg"
+    if not global_pca_ondata.is_file():
+        raise RuntimeError(
+            "Global gene-velocity API did not produce the expected PC1-PC2 panel. "
+            f"Outputs: {global_gene_outputs}"
+        )
+    shutil.copy2(global_pca_ondata, pca_velocity_figure)
     roi_csv = output_dir / "full_vs_interaction_direction_roi.csv"
     figure_path = output_dir / "full_vs_interaction_direction_roi.svg"
     result = plot_spatial_component_direction_correlation_roi_from_adata(
@@ -1690,6 +1787,7 @@ def run_arista_direction_correlation_api(
             "figure": str(figure_path),
             "spatial_velocity_figure": str(spatial_velocity_figure),
             "pca_velocity_figure": str(pca_velocity_figure),
+            "global_gene_velocity_outputs": list(global_gene_outputs),
             "component_summary": str(component_summary),
         },
         settings={
@@ -1703,6 +1801,23 @@ def run_arista_direction_correlation_api(
             "roi_bounds": list(result.roi_bounds),
             "n_roi_cells": int(len(result.table)),
             "max_cells": max_cells,
+            "spatial_velocity_scope": {
+                "timepoint": selected_time,
+                "n_cells": int(direction_adata.n_obs),
+                "graph_dim": 2,
+                "component": "drift + interaction + score",
+            },
+            "gene_velocity_scope": {
+                "timepoints": sorted(map(float, np.unique(raw_times))),
+                "n_cells": int(context["adata"].n_obs),
+                "graph_dim": int(context["dim"] - spatial_dim),
+                "graph_n_neighbors": 30,
+                "projection": "global PC1-PC2 fitted on all observed cells",
+                "component": "drift + interaction + score",
+                "source_panel": str(global_pca_ondata),
+                "kept_cell_types": keep_cell_types,
+                "other_label": "Other",
+            },
         },
     )
     manifest_path = output_dir / "run_manifest.json"

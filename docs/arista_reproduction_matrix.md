@@ -137,7 +137,7 @@ a coordinate-scale change.
 | 5b | Generated 3.5-DPI spatial slice | `notebooks/arista/arista_lineage_snapshot_api.ipynb` | **Full run complete:** generated t=0.5 model-time slice, corresponding to 3.5 DPI after dataset-time relabeling |
 | 5c left | Spatial migration velocity streamlines | `notebooks/arista/arista_velocity_direction_correlation_api.ipynb` | **Full run complete:** `full_velocity_spatial.svg` at t=1 model time / 5 DPI |
 | 5c right | Local cosine similarity between full spatial velocity and interaction-program velocity in the reaEGC injury-adjacent ROI | `notebooks/arista/arista_velocity_direction_correlation_api.ipynb` | **Full run complete:** ROI table and spatial panel; ROI definition and cell count are recorded in the manifest |
-| 5d | Gene-expression velocity in PC1-PC2 space | `notebooks/arista/arista_velocity_direction_correlation_api.ipynb` | **Full run complete:** `full_velocity_pca.svg` at t=1 |
+| 5d | Gene-expression velocity in PC1-PC2 space | `notebooks/arista/arista_velocity_direction_correlation_api.ipynb` | **Full run complete:** `full_velocity_pca.svg` uses all 46,189 observed cells across model times 0-4, a 30-neighbor velocity graph in the full 50-D gene state, and a global PC1-PC2 projection. It is not the t=1 spatial subset. |
 | 5e | Mean interaction magnitude versus mean growth for each time/cell-type group | `notebooks/arista/arista_growth_interaction_api.ipynb` | **Full run complete:** grouped table and bubble plot generated from model component calls |
 
 The manuscript maps model times `0,1,2,3,4` to observed days post injury
